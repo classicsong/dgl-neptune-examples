@@ -247,9 +247,10 @@ class MUTAGDataset(RDFLoader):
         # handle label
         is_mutagenic_triplets = triplets[self.is_mutagenic]
         for (sbj, pred, obj) in is_mutagenic_triplets:
-            print(sbj)
-            sbj_id = _get_id(entities, str(sbj))
+            print("{} {} {}".format(sbj, pred, obj))
+            sbj_id = _get_id(entities, str(self.parse_sbj(sbj)))
             label = _get_id(labels, str(obj))
+            print(sbj_id)
             dataset_pairs.append((sbj_id, label))
 
         src = np.array(src)
@@ -270,14 +271,23 @@ class MUTAGDataset(RDFLoader):
             etypes.extend(['rev-%s' % t for t in etypes])
 
         self.build_graph(mg, src, dst, ntid, etid, ntypes, etypes)
-        self.split_dataset(dataset_pairs, labels)
+        # get global to subgraph local id mapping
+        idmap = F.asnumpy(self.graph.nodes[self.predict_category].data[dgl.NID])
+        glb2lcl = {glbid : lclid for lclid, glbid in enumerate(idmap)}
+        self.split_dataset(dataset_pairs, labels, glb2lcl)
 
-    def split_dataset(self, dataset_pairs, label_dict):
+    def split_dataset(self, dataset_pairs, label_dict, glb2lcl):
         total = len(dataset_pairs)
-        train_set_size = int(total * 0.9)
-        entities, labels = zip(*dataset_pairs)
-        train_entities = entities[:train_set_size]
-        test_entities = entities[train_set_size:]
+        train_set_size = int(total * 0.8)
+        entities, truths = zip(*dataset_pairs)
+        local_entities = []
+        labels = np.zeros((self.graph.number_of_nodes(self.predict_category),)) - 1
+        for i, entity in enumerate(entities):
+            local_id = glb2lcl[entity]
+            local_entities.append(local_id)
+            labels[local_id] = truths[i]
+        train_entities = local_entities[:train_set_size]
+        test_entities = local_entities[train_set_size:]
 
         self.train_idx = F.tensor(train_entities)
         self.test_idx = F.tensor(test_entities)

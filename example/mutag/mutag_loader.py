@@ -65,6 +65,11 @@ def _get_id(dict, key):
         dict[key] = id
     return id
 
+def _map_object(dict, id, entity):
+    val = dict.get(id)
+    if val is None:
+        dict[id] = entity
+
 class RDFLoader():
     def __init__(self):
         pass
@@ -193,12 +198,14 @@ class MUTAGDataset(RDFLoader):
         return (sbj, rel, obj)
 
     def process_raw_tuples(self, raw_rdf_graphs):
-        triplets = {}
+        triplets = OrderedDict()
         mg = nx.MultiDiGraph()
         ent_classes = OrderedDict()
         rel_classes = OrderedDict()
         entities = OrderedDict()
+        id2entity = {}
         labels = OrderedDict()
+        id2label = {}
         dataset_pairs = []
 
         src = []
@@ -235,9 +242,11 @@ class MUTAGDataset(RDFLoader):
                     mg.add_edge(objent.n_type, sbjent.n_type, key='rev-%s' % rel.r_type)
                 # instance graph
                 src_id = _get_id(entities, str(sbjent))
+                _map_object(id2entity, src_id, sbjent)
                 if len(entities) > len(ntid):  # found new entity
                     ntid.append(sbjclsid)
                 dst_id = _get_id(entities, str(objent))
+                _map_object(id2entity, src_id, objent)
                 if len(entities) > len(ntid):  # found new entity
                     ntid.append(objclsid)
                 src.append(src_id)
@@ -247,10 +256,10 @@ class MUTAGDataset(RDFLoader):
         # handle label
         is_mutagenic_triplets = triplets[self.is_mutagenic]
         for (sbj, pred, obj) in is_mutagenic_triplets:
-            print("{} {} {}".format(sbj, pred, obj))
+            #print("{} {} {}".format(sbj, pred, obj))
             sbj_id = _get_id(entities, str(self.parse_sbj(sbj)))
             label = _get_id(labels, str(obj))
-            print(sbj_id)
+            _map_object(id2label, label, obj)
             dataset_pairs.append((sbj_id, label))
 
         src = np.array(src)
@@ -274,7 +283,11 @@ class MUTAGDataset(RDFLoader):
         # get global to subgraph local id mapping
         idmap = F.asnumpy(self.graph.nodes[self.predict_category].data[dgl.NID])
         glb2lcl = {glbid : lclid for lclid, glbid in enumerate(idmap)}
+        lcl2glb = {lclid : glbid for lclid, glbid in enumerate(idmap)}
         self.split_dataset(dataset_pairs, labels, glb2lcl)
+        self.lcl2glb = lcl2glb
+        self.id2entity = id2entity
+        self.id2label = id2label
 
     def split_dataset(self, dataset_pairs, label_dict, glb2lcl):
         total = len(dataset_pairs)
@@ -315,3 +328,14 @@ class MUTAGDataset(RDFLoader):
         print('#Unique edge type names:', len(set(hg.etypes)))
         self.graph = hg
 
+    def gen_sparql(self, idxes, results):
+        len = idxes.shape[0]
+        for i in range(len):
+            idx = idxes[i]
+            truth = results[i]
+            glb_id = self.lcl2glb[idx]
+            subj = self.id2entity[glb_id].obj
+            obj = self.id2label[truth]
+
+            cmd = "update=INSERT DATA {{ <{}> <{}> {} . }}".format(subj, self.is_mutagenic, obj)
+            print(cmd)

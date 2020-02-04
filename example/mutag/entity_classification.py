@@ -14,7 +14,6 @@ import dgl.function as fn
 
 from mutag_loader import MUTAGDataset
 
-
 class RelGraphConvHetero(nn.Module):
     r"""Relational graph convolution layer.
     Parameters
@@ -117,7 +116,9 @@ class RelGraphConvHetero(nn.Module):
             g.nodes[ntype].data['x'] = xs[i]
         ws = self.basis_weight()
         funcs = {}
-        for i, (srctype, etype, dsttype) in enumerate(g.canonical_etypes):
+        canonical_etypes = g.canonical_etypes
+        canonical_etypes.sort()
+        for i, (srctype, etype, dsttype) in enumerate(canonical_etypes):
             g.nodes[srctype].data['h%d' % i] = th.matmul(
                 g.nodes[srctype].data['x'], ws[etype])
             funcs[(srctype, etype, dsttype)] = (fn.copy_u('h%d' % i, 'm'), fn.mean('m', 'h'))
@@ -156,7 +157,10 @@ class RelGraphConvHeteroEmbed(nn.Module):
 
         # create weight embeddings for each node for each relation
         self.embeds = nn.ParameterList()
-        for srctype, etype, dsttype in g.canonical_etypes:
+        canonical_etypes = g.canonical_etypes
+        canonical_etypes.sort()
+        for srctype, etype, dsttype in canonical_etypes:
+            print("{} {} {}".format(srctype, etype, dsttype))
             embed = nn.Parameter(th.Tensor(g.number_of_nodes(srctype), self.embed_size))
             nn.init.xavier_uniform_(embed, gain=nn.init.calculate_gain('relu'))
             self.embeds.append(embed)
@@ -186,7 +190,9 @@ class RelGraphConvHeteroEmbed(nn.Module):
         """
         g = self.g.local_var()
         funcs = {}
-        for i, (srctype, etype, dsttype) in enumerate(g.canonical_etypes):
+        canonical_etypes = g.canonical_etypes
+        canonical_etypes.sort()
+        for i, (srctype, etype, dsttype) in enumerate(canonical_etypes):
             g.nodes[srctype].data['embed-%d' % i] = self.embeds[i]
             funcs[(srctype, etype, dsttype)] = (fn.copy_u('embed-%d' % i, 'm'), fn.mean('m', 'h'))
         g.multi_update_all(funcs, 'sum')
@@ -274,7 +280,6 @@ def main(args):
         labels = labels.cuda()
         train_idx = train_idx.cuda()
         test_idx = test_idx.cuda()
-        labels = labels.cuda()
 
     # create model
     model = EntityClassify(g,
@@ -320,6 +325,9 @@ def main(args):
     test_acc = th.sum(logits[test_idx].argmax(dim=1) == labels[test_idx]).item() / len(test_idx)
     print("Test Acc: {:.4f} | Test loss: {:.4f}".format(test_acc, test_loss.item()))
     print()
+    th.save(model.state_dict(), args.model_path)
+    #results = logits[test_idx].argmax(dim=1)
+    #dataset.gen_sparql(test_idx.cpu().detach().numpy(), results.cpu().detach().numpy())
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RGCN')
@@ -339,6 +347,8 @@ if __name__ == '__main__':
             help="number of training epochs")
     parser.add_argument("--l2norm", type=float, default=0,
             help="l2 norm coef")
+    parser.add_argument("--model_path", type=str,
+            help='save path for model')
     parser.add_argument("--use-self-loop", default=False, action='store_true',
             help="include self feature as a special relation")
     fp = parser.add_mutually_exclusive_group(required=False)

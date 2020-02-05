@@ -116,9 +116,7 @@ class RelGraphConvHetero(nn.Module):
             g.nodes[ntype].data['x'] = xs[i]
         ws = self.basis_weight()
         funcs = {}
-        canonical_etypes = g.canonical_etypes
-        canonical_etypes.sort()
-        for i, (srctype, etype, dsttype) in enumerate(canonical_etypes):
+        for i, (srctype, etype, dsttype) in enumerate(g.canonical_etypes):
             g.nodes[srctype].data['h%d' % i] = th.matmul(
                 g.nodes[srctype].data['x'], ws[etype])
             funcs[(srctype, etype, dsttype)] = (fn.copy_u('h%d' % i, 'm'), fn.mean('m', 'h'))
@@ -156,14 +154,12 @@ class RelGraphConvHeteroEmbed(nn.Module):
         self.self_loop = self_loop
 
         # create weight embeddings for each node for each relation
-        self.embeds = nn.ParameterList()
-        canonical_etypes = g.canonical_etypes
-        canonical_etypes.sort()
-        for srctype, etype, dsttype in canonical_etypes:
+        self.embeds = nn.ParameterDict()
+        for srctype, etype, dsttype in g.canonical_etypes:
             print("{} {} {}".format(srctype, etype, dsttype))
             embed = nn.Parameter(th.Tensor(g.number_of_nodes(srctype), self.embed_size))
             nn.init.xavier_uniform_(embed, gain=nn.init.calculate_gain('relu'))
-            self.embeds.append(embed)
+            self.embeds["{}-{}-{}".format(srctype, etype, dsttype)] = embed
 
         # bias
         if self.bias:
@@ -190,10 +186,8 @@ class RelGraphConvHeteroEmbed(nn.Module):
         """
         g = self.g.local_var()
         funcs = {}
-        canonical_etypes = g.canonical_etypes
-        canonical_etypes.sort()
-        for i, (srctype, etype, dsttype) in enumerate(canonical_etypes):
-            g.nodes[srctype].data['embed-%d' % i] = self.embeds[i]
+        for i, (srctype, etype, dsttype) in enumerate(g.canonical_etypes):
+            g.nodes[srctype].data['embed-%d' % i] = self.embeds["{}-{}-{}".format(srctype, etype, dsttype)]
             funcs[(srctype, etype, dsttype)] = (fn.copy_u('embed-%d' % i, 'm'), fn.mean('m', 'h'))
         g.multi_update_all(funcs, 'sum')
         

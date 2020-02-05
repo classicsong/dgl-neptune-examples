@@ -214,7 +214,13 @@ class MUTAGDataset(RDFLoader):
         etid = []
 
         mutag_graph = raw_rdf_graphs[0]
-        for (sbj, pred, obj) in mutag_graph:
+        ts = []
+        # make triplets sorted each time we load the graph
+        for t in mutag_graph:
+            ts.append(t)
+        ts.sort()
+        
+        for (sbj, pred, obj) in ts:
             if pred in triplets:
                 triplets[pred].append((sbj, pred, obj))
             else:

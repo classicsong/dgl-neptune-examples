@@ -10,11 +10,12 @@ The MUTAG data is stored as RDF in xml format which can be loaded by Neptune dir
 
 ## How to use
 ### Train
-'''
-python3 entity_classification.py --l2norm 5e-4 --n-bases 30 --model_path="tmp.pt"
-'''
+> python3 entity_classification.py --l2norm 5e-4 --n-bases 30 --model_path="tmp.pt“
+
 
 ### Eval
-'''
-python3 eval_classification.py --n-bases 30 --model_path "tmp.pt"
-'''
+The CMD will generate Sparql CMD.
+> python3 eval_classification.py --n-bases 30 --model_path "tmp.pt"
+
+### Issue neptune insert
+> curl -X POST --data-binary \'$CMD' http://xxx.neptune.amazonaws.com:8182/sparql

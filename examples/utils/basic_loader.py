@@ -232,7 +232,7 @@ class NodeClassificationDataloader(object):
                 info = info.iloc[:,column_keys]
 
                 # now parse edges
-                id_map = {} if self._id_maps.get('homo', None) is None: \
+                id_map = {} if self._id_maps.get('homo', None) is None else \
                          self._id_maps['homo']
                 edges = []
                 for _, row_val in info.iterrows():
@@ -369,7 +369,7 @@ class NodeClassificationDataloader(object):
                 start, end = column_keys[1]
                 feature_info = info.iloc[:,start:end]
 
-                id_map = {} if self._id_maps.get('homo', None) is None: \
+                id_map = {} if self._id_maps.get('homo', None) is None else \
                          self._id_maps['homo']
                 node_ids = []
                 for nid in node_info.to_numpy():
@@ -399,7 +399,7 @@ class NodeClassificationDataloader(object):
                 node_info = info.iloc[:,0]
                 feature_info = info.iloc[:,1:]
                 
-                id_map = {} if self._id_maps.get(names[0], None) is None: \
+                id_map = {} if self._id_maps.get(names[0], None) is None else \
                          self._id_maps[names[0]]
                 assert id_map is not None
                 node_ids = []
@@ -460,7 +460,7 @@ class NodeClassificationDataloader(object):
                 # now parse label in (id, value) pairs
                 pairs = []
                 label_map = {}
-                id_map = {} if self._id_maps.get('homo', None) is None: \
+                id_map = {} if self._id_maps.get('homo', None) is None else \
                          self._id_maps['homo']
                 for _, row_val in info.iterrows():
                     src, label = row_val

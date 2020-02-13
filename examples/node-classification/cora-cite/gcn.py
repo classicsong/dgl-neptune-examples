@@ -17,7 +17,7 @@ class GCN(nn.Module):
                  n_classes,
                  n_layers,
                  activation,
-                 dropout):
+                 dropout=0.1):
         super(GCN, self).__init__()
         self.g = g
         self.layers = nn.ModuleList()

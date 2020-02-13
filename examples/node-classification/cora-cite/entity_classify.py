@@ -90,6 +90,8 @@ def main(args):
     acc = evaluate(model, features['homo'], test_set)
     print("Test accuracy {:.2%}".format(acc))
 
+    torch.save(model.state_dict(), args.model_path)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GCN')
@@ -107,6 +109,8 @@ if __name__ == '__main__':
             help="number of hidden gcn layers")
     parser.add_argument("--weight-decay", type=float, default=5e-4,
             help="Weight for L2 loss")
+    parser.add_argument("--model_path", type=str,
+            help='save path for model')
     parser.set_defaults(self_loop=False)
     args = parser.parse_args()
     print(args)

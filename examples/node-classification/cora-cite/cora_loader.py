@@ -19,11 +19,17 @@ class CoraDataset(NodeClassificationDataloader):
     def __init__(self, device, self_loop=True, valid_ratio=0.1, test_ratio=0.2):
         super(CoraDataset, self).__init__('cora')
         self._download_data()
-        self._load_raw_graph((None, "{}/cora/cora.cites".format(self._dir),'\t', [0, 1]))
-        self._load_raw_label(("{}/cora/cora.content".format(self._dir),'\t', [0, -1]))
+        # Step 1: load feature for the graph and build id mapping
         self._load_onehot_feature(("{}/cora/cora.content".format(self._dir),'\t', [0, (1,-1)]), device)
+        # Step 2: load labels
+        self._load_raw_label(("{}/cora/cora.content".format(self._dir),'\t', [0, -1]))
+        # Step 3: load graph
+        self._load_raw_graph((None, "{}/cora/cora.cites".format(self._dir),'\t', [0, 1]))
+        # Step 4: build graph
         self._build_cora_graph(self_loop)
+        # Step 5: load node feature
         self._load_node_feature(device)
+        # Step 6: Split labels
         self._split_labels(device, valid_ratio, test_ratio)
 
         self._n_classes = len(self._labels[0].label_map)

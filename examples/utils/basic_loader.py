@@ -232,7 +232,8 @@ class NodeClassificationDataloader(object):
                 info = info.iloc[:,column_keys]
 
                 # now parse edges
-                id_map = {}
+                id_map = {} if self._id_maps.get('homo', None) is None: \
+                         self._id_maps['homo']
                 edges = []
                 for _, row_val in info.iterrows():
                     src, dst = row_val
@@ -241,7 +242,8 @@ class NodeClassificationDataloader(object):
                     edges.append((src_id, dst_id))
                 edges = np.asarray(edges, dtype=np.int32)
                 self._triplets.append(BasicGraph(edges, (id_map, id_map)))
-                self._id_maps['homo' if name is None else name] = id_map
+                if self._id_maps.get('homo', None) is None:
+                    self._id_maps['homo'] = id_map
             else:
                 names = [key for (key, dtype) in column_keys]
                 dtypes = {key : dtype for (key, dtype) in column_keys}
@@ -255,9 +257,9 @@ class NodeClassificationDataloader(object):
 
                 if len(column_keys) == 2:
                     src_id_map = {} if self._id_maps.get(names[0], None) is None else \
-                                    self._id_maps[names[0]]
+                                 self._id_maps[names[0]]
                     dst_id_map = {} if self._id_maps.get(names[1], None) is None else \
-                                    self._id_maps[names[1]]
+                                 self._id_maps[names[1]]
                     edges = []
                     for _, row_val in info.iterrows():
                         src, dst = row_val
@@ -279,11 +281,11 @@ class NodeClassificationDataloader(object):
                         self._id_maps[names[1]] = dst_id_map
                 else:
                     src_id_map = {} if self._id_maps.get(names[0], None) is None else \
-                                    self._id_maps[names[0]]
+                                 self._id_maps[names[0]]
                     dst_id_map = {} if self._id_maps.get(names[2], None) is None else \
-                                    self._id_maps[names[2]]
+                                 self._id_maps[names[2]]
                     rel_id_map = {} if self._rel_maps.get(names[1], None) is None else \
-                                    self._rel_maps[names[1]]
+                                 self._rel_maps[names[1]]
                     graphs = {}
                     for _, row_val in info.iterrows():
                         src, rel, dst = row_val
@@ -367,10 +369,11 @@ class NodeClassificationDataloader(object):
                 start, end = column_keys[1]
                 feature_info = info.iloc[:,start:end]
 
-                id_map = self._id_maps['homo']
+                id_map = {} if self._id_maps.get('homo', None) is None: \
+                         self._id_maps['homo']
                 node_ids = []
                 for nid in node_info.to_numpy():
-                    id = id_map[nid]
+                    id = get_id(id_map, nid)
                     node_ids.append(id)
 
                 node_ids = np.asarray(node_ids)
@@ -384,6 +387,8 @@ class NodeClassificationDataloader(object):
                 features = features[node_ids]
                 node_ids = np.arange(node_ids.shape[0])
                 self._features.append(BasicFeature(node_ids, features))
+                if self._id_maps.get('homo', None) is None:
+                    self._id_maps['homo'] = id_map
             else:
                 names = [key for (key, _) in column_keys]
                 dtypes = {key : dtype for (key, dtype) in column_keys}
@@ -394,11 +399,12 @@ class NodeClassificationDataloader(object):
                 node_info = info.iloc[:,0]
                 feature_info = info.iloc[:,1:]
                 
-                id_map = self._id_maps[names[0]]
+                id_map = {} if self._id_maps.get(names[0], None) is None: \
+                         self._id_maps[names[0]]
                 assert id_map is not None
                 node_ids = []
                 for nid in node_info.to_numpy():
-                    id = id_map[nid]
+                    id = get_id(id_map, nid)
                     node_ids.append(id)
 
                 node_ids = np.asarray(node_ids)
@@ -412,6 +418,8 @@ class NodeClassificationDataloader(object):
                 features = features[node_ids]
                 node_ids = np.arange(node_ids.shape[0])
                 self._features.append(BasicFeature(node_ids, features, is_homo=False, node_type=names[0]))
+                if self._id_maps.get(names[0], None) is None:
+                    self._id_maps[names[0]] = id_map
 
     def _load_raw_label(self, label_data):
         r"""parse label data
@@ -452,10 +460,11 @@ class NodeClassificationDataloader(object):
                 # now parse label in (id, value) pairs
                 pairs = []
                 label_map = {}
-                id_map = self._id_maps['homo']
+                id_map = {} if self._id_maps.get('homo', None) is None: \
+                         self._id_maps['homo']
                 for _, row_val in info.iterrows():
                     src, label = row_val
-                    src_id = id_map[src]
+                    src_id = get_id(id_map, src)
                     label_id = get_id(label_map, label)
                     pairs.append((src_id, label_id))
                 
@@ -464,6 +473,8 @@ class NodeClassificationDataloader(object):
                 labels = pairs[:, 1]
                 self._labels.append((BasicLabel((ids, labels), id_map, label_map)))
                 self._label_map = label_map
+                if self._id_maps.get('homo', None) is None:
+                    self._id_maps['homo'] = id_map
             else:
                 names = [key for (key, dtype) in column_keys]
                 dtypes = {key : dtype for (key, dtype) in column_keys}
@@ -477,12 +488,12 @@ class NodeClassificationDataloader(object):
                 # now parse label in (id, value) pairs
                 pairs = []
                 label_map = {}
-                id_map = self._id_maps[names[0]]
-                assert id_map is not None
+                id_map = {} if self._id_maps.get(names[0], None) is None else \
+                         self._id_maps[names[0]]
 
                 for _, row_val in info.iterrows():
                     src, label = row_val
-                    src_id = id_map[src]
+                    src_id = get_id(id_map, src)
                     label_id = get_id(label_map, label)
                     pairs.append(src_id, label_id)
                 pairs = np.asarray(pairs)
@@ -495,6 +506,8 @@ class NodeClassificationDataloader(object):
                                                      name[0],
                                                      name[1])))
                 self._label_map = label_map
+                if self._id_maps.get(names[0], None) is None:
+                    self._id_maps[names[0]] = id_map
 
     def _build_graph(self, self_loop=True):
         if len(self._triplets) == 1:

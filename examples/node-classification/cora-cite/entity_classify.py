@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from dgl import DGLGraph
 
 from gcn import GCN
-from cora_loader import CoraDataset
+from cora_loader import CoraDataset, NeptuneCoraDataset
 
 def evaluate(model, features, test_set):
     model.eval()
@@ -29,7 +29,8 @@ def main(args):
     else:
         device = torch.device('cpu')
         cuda = False
-    cora_data = CoraDataset(device, valid_ratio=0.1, test_ratio=0.2)
+    cora_data = NeptuneCoraDataset(device, valid_ratio=0.1, test_ratio=0.2)
+    #cora_data = CoraDataset(device, valid_ratio=0.1, test_ratio=0.2)
     features = cora_data.features
     test_set = cora_data.test_set
     valid_set = cora_data.valid_set

@@ -12,6 +12,57 @@ from dgl.data.utils import download, extract_archive, get_download_dir, _get_dgl
 sys.path.append('../../')
 from utils.basic_loader import NodeClassificationDataloader
 
+class NeptuneCoraDataset(NodeClassificationDataloader):
+    r"""Cora citation network dataset. Nodes mean author and edges mean citation
+    relationships.
+
+    The data is from Neptune database
+    """
+    def __init__(self, device, self_loop=True, valid_ratio=0.1, test_ratio=0.2):
+        super(NeptuneCoraDataset, self).__init__('cora')
+
+        # Step 1: load feature for the graph and build id mapping
+        self._load_onehot_feature([("~/data/cora/1581903495972/nodes/Case_Based-1.csv",',', [0, (2,0)], (1,0)),
+                                   ("~/data/cora/1581903495972/nodes/Genetic_Algorithms-1.csv",',', [0, (2,0)], (1,0)),
+                                   ("~/data/cora/1581903495972/nodes/Neural_Networks-1.csv",',', [0, (2,0)], (1,0)),
+                                   ("~/data/cora/1581903495972/nodes/Probabilistic_Methods-1.csv",',', [0, (2,0)], (1,0)),
+                                   ("~/data/cora/1581903495972/nodes/Reinforcement_Learning-1.csv",',', [0, (2,0)], (1,0)),
+                                   ("~/data/cora/1581903495972/nodes/Rule_Learning-1.csv",',', [0, (2,0)], (1,0)),
+                                   ("~/data/cora/1581903495972/nodes/Theory-1.csv",',', [0, (2,0)], (1,0))], device)
+        # Step 2: load labels
+        self._load_raw_label([("~/data/cora/1581903495972/nodes/Case_Based-1.csv", ',', [0, 1], (1,0)),
+                              ("~/data/cora/1581903495972/nodes/Genetic_Algorithms-1.csv",',', [0, 1], (1,0)),
+                              ("~/data/cora/1581903495972/nodes/Neural_Networks-1.csv",',', [0, 1], (1,0)),
+                              ("~/data/cora/1581903495972/nodes/Probabilistic_Methods-1.csv",',', [0, 1], (1,0)),
+                              ("~/data/cora/1581903495972/nodes/Reinforcement_Learning-1.csv",',', [0, 1], (1,0)),
+                              ("~/data/cora/1581903495972/nodes/Rule_Learning-1.csv",',', [0, 1], (1,0)),
+                              ("~/data/cora/1581903495972/nodes/Theory-1.csv",',', [0, 1], (1,0))])
+        # Step 3: load graph
+        self._load_raw_graph([(None, "~/data/cora/1581903495972/edges/edge-1.csv",',', [2, 3], (1,0))])
+        # Step 4: build graph
+        self._build_graph(self_loop, symmetric=True)
+        # Step 5: load node feature
+        self._load_node_feature(device)
+        # Step 6: Split labels
+        self._split_labels(device, valid_ratio, test_ratio)
+
+        self._n_classes = len(self._labels[0].label_map)
+        n_edges = self._g.number_of_edges()
+        print("""----Data statistics------'
+        #Edges %d
+        #Classes %d
+        #Train samples %d
+        #Val samples %d
+        #Test samples %d""" %
+            (n_edges, self._n_classes,
+                self._train_set[0].shape[0],
+                self._valid_set[0].shape[0],
+                self._test_set[0].shape[0]))
+
+    @property
+    def n_class(self):
+        return self._n_classes
+
 class CoraDataset(NodeClassificationDataloader):
     r"""Cora citation network dataset. Nodes mean author and edges mean citation
     relationships.
@@ -20,13 +71,13 @@ class CoraDataset(NodeClassificationDataloader):
         super(CoraDataset, self).__init__('cora')
         self._download_data()
         # Step 1: load feature for the graph and build id mapping
-        self._load_onehot_feature(("{}/cora/cora.content".format(self._dir),'\t', [0, (1,-1)]), device)
+        self._load_onehot_feature([("{}/cora/cora.content".format(self._dir),'\t', [0, (1,-1)], (0,0))], device)
         # Step 2: load labels
-        self._load_raw_label(("{}/cora/cora.content".format(self._dir),'\t', [0, -1]))
+        self._load_raw_label([("{}/cora/cora.content".format(self._dir),'\t', [0, -1], (0,0))])
         # Step 3: load graph
-        self._load_raw_graph((None, "{}/cora/cora.cites".format(self._dir),'\t', [0, 1]))
+        self._load_raw_graph([(None, "{}/cora/cora.cites".format(self._dir),'\t', [0, 1], (0,0))])
         # Step 4: build graph
-        self._build_cora_graph(self_loop)
+        self._build_graph(self_loop, symmetric=True)
         # Step 5: load node feature
         self._load_node_feature(device)
         # Step 6: Split labels
@@ -51,23 +102,6 @@ class CoraDataset(NodeClassificationDataloader):
         download(_get_dgl_url("dataset/cora_raw.zip"), path=zip_file_path)
         extract_archive(zip_file_path,
                         '{}/{}'.format(self._dir, self._name))
-
-    def _build_cora_graph(self, self_loop=True):
-        raw_graph = self._triplets[0]
-        edges = raw_graph.edges
-        adj = sp.coo_matrix((np.ones(edges.shape[0]),
-                            (edges[:, 0], edges[:, 1])),
-                            shape=(raw_graph.src_range, raw_graph.dst_range),
-                            dtype=np.float32)
-        # build symmetric adjacency matrix
-        adj = adj + adj.T.multiply(adj.T > adj) - adj.multiply(adj.T > adj)
-        g = nx.from_scipy_sparse_matrix(adj, create_using=nx.DiGraph())
-        print(g.number_of_edges())
-        if self_loop:
-            g.remove_edges_from(nx.selfloop_edges(g))
-            g.add_edges_from(zip(g.nodes(), g.nodes()))
-        g = DGLGraph(g)
-        self._g = g
 
     def _split_labels(self, device, valid_ratio=0.1, test_ratio=0.2):
         ids, labels = self._labels[0].id_labels

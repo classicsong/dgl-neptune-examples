@@ -22,6 +22,7 @@ class NeptuneCoraDataset(NodeClassificationDataloader):
         super(NeptuneCoraDataset, self).__init__('cora')
 
         # Step 1: load feature for the graph and build id mapping
+        # we ignore the label row, data is stored as '~id ~label feats ...'
         self._load_onehot_feature([("~/data/cora/1581903495972/nodes/Case_Based-1.csv",',', [0, (2,0)], (1,0)),
                                    ("~/data/cora/1581903495972/nodes/Genetic_Algorithms-1.csv",',', [0, (2,0)], (1,0)),
                                    ("~/data/cora/1581903495972/nodes/Neural_Networks-1.csv",',', [0, (2,0)], (1,0)),
@@ -30,6 +31,7 @@ class NeptuneCoraDataset(NodeClassificationDataloader):
                                    ("~/data/cora/1581903495972/nodes/Rule_Learning-1.csv",',', [0, (2,0)], (1,0)),
                                    ("~/data/cora/1581903495972/nodes/Theory-1.csv",',', [0, (2,0)], (1,0))], device)
         # Step 2: load labels
+        # we ignore the label row, data is stored as '~id ~label feats ...'
         self._load_raw_label([("~/data/cora/1581903495972/nodes/Case_Based-1.csv", ',', [0, 1], (1,0)),
                               ("~/data/cora/1581903495972/nodes/Genetic_Algorithms-1.csv",',', [0, 1], (1,0)),
                               ("~/data/cora/1581903495972/nodes/Neural_Networks-1.csv",',', [0, 1], (1,0)),
@@ -38,6 +40,7 @@ class NeptuneCoraDataset(NodeClassificationDataloader):
                               ("~/data/cora/1581903495972/nodes/Rule_Learning-1.csv",',', [0, 1], (1,0)),
                               ("~/data/cora/1581903495972/nodes/Theory-1.csv",',', [0, 1], (1,0))])
         # Step 3: load graph
+        # we ignore the label row, data is streod as '~edge_id ~edge_label ~from ~to', we use from and to here
         self._load_raw_graph([(None, "~/data/cora/1581903495972/edges/edge-1.csv",',', [2, 3], (1,0))])
         # Step 4: build graph
         self._build_graph(self_loop, symmetric=True)

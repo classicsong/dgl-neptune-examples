@@ -11,16 +11,6 @@ from dgl import DGLGraph
 from gcn import GCN
 from cora_loader import CoraDataset, NeptuneCoraDataset
 
-def evaluate(model, features, test_set):
-    model.eval()
-    with torch.no_grad():
-        logits = model(features)
-        logits = logits[test_set[0]]
-        labels = test_set[1]
-        _, indices = torch.max(logits, dim=1)
-        correct = torch.sum(indices == labels)
-        return correct.item() * 1.0 / len(labels)
-
 def main(args):
     # load and preprocess dataset
     if args.gpu > 0:
@@ -29,9 +19,11 @@ def main(args):
     else:
         device = torch.device('cpu')
         cuda = False
-    cora_data = NeptuneCoraDataset(device, valid_ratio=0.1, test_ratio=0.2)
+    cora_data = NeptuneCoraDataset(device, valid_ratio=0.0, test_ratio=0.1)
     #cora_data = CoraDataset(device, valid_ratio=0.1, test_ratio=0.2)
     features = cora_data.features
+
+    # we infer type of nodes in test_set
     test_set = cora_data.test_set
     g = cora_data.g
 
@@ -55,11 +47,20 @@ def main(args):
     model.load_state_dict(torch.load(args.model_path))
     if cuda:
         model.cuda()
+    
+    model.eval()
+    with torch.no_grad():
+        logits = model(features['homo'])
+        logits = logits[test_set[0]]
+        _, indices = torch.max(logits, dim=1)
 
-    print()
-    acc = evaluate(model, features['homo'], test_set)
-    print("Test accuracy {:.2%}".format(acc))
-
+        nodes = test_set[0].numpy().tolist()
+        indices = indices.numpy().tolist()
+        for idx, label in enumerate(indices):
+            node_id = nodes[idx]
+            truth_nid = cora_data.translate_node(node_id)
+            truth_label = cora_data.translate_label(label)
+            print("{} is {}".format(truth_nid, truth_label))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GCN')

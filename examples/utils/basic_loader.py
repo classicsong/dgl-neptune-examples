@@ -179,10 +179,12 @@ class NodeClassificationDataloader(object):
     def __init__(self, name):
         self._name = name
         self._id_maps = {}
+        self._id_inv_maps = {}
         self._rel_maps = {}
         self._triplets = []
         self._labels = []
-        self._label_map = {}
+        self._label_map = None
+        self._inv_label_map = None
         self._features = []
 
     def _load_raw_graph(self, graph_datas, reverse=True):
@@ -479,3 +481,18 @@ class NodeClassificationDataloader(object):
         r"""Return DGLGraph or DGLHeteroGraph
         """
         return self._g
+
+    def translate_node(self, node_id, ntype=None):
+        if ntype is None: # homo here
+            ntype = 'homo'
+
+        if self._id_inv_maps.get('homo', None) is None:
+            inv_map = {v: k for k, v in self._id_maps['homo'].items()}
+            self._id_inv_maps = inv_map
+        return self._id_inv_maps[node_id]
+
+    def translate_label(self, label_id):
+        if self._inv_label_map is None:
+            inv_map = {v: k for k, v in self._label_map.items()}
+            self._inv_label_map = inv_map
+        return self._inv_label_map[label_id]

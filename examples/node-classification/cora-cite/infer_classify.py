@@ -60,7 +60,7 @@ def main(args):
             node_id = nodes[idx]
             truth_nid = cora_data.translate_node(node_id)
             truth_label = cora_data.translate_label(label)
-            print("{} is {}".format(truth_nid, truth_label))
+            print("{{\"gremlin\":\"g.V(\\\"{}\\\").property(\\\"category\\\", \\\"{}\\\")\"}}".format(truth_nid, truth_label))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GCN')

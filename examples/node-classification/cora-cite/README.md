@@ -49,3 +49,23 @@ python3 eval_classify.py --gpu 0 --model_path cora.pt
 ```
 
 ### Inference
+You can directly run the inference script to infer test data from cora dataset and generate gremlin cmds
+```
+python3 infer_classify.py --gpu 0 --model_path cora.pt
+```
+
+The output is a list of following strings:
+```
+{"gremlin":"g.V(\"143476\").property(\"category\", \"Probabilistic_Methods\")"}
+{"gremlin":"g.V(\"1116347\").property(\"category\", \"Reinforcement_Learning\")"}
+```
+
+You can using curl cmd to update gremlin database
+```
+curl -X POST -d '<CMD_FROM_INFER>' https://<YOUR_NEPTUNE_ADDR>.neptune.amazonaws.com:8182/gremlin
+```
+
+For example
+```
+curl -X POST -d '{"gremlin":"g.V(\"1116347\").property(\"category\", \"Reinforcement_Learning\")"}' https://<YOUR_NEPTUNE_ADDR>.neptune.amazonaws.com:8182/gremlin
+```

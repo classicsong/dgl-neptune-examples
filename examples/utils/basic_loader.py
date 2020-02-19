@@ -192,8 +192,8 @@ class NodeClassificationDataloader(object):
 
         Parameters
         ----------
-        graph_datas : (name, file_path, separator, columns, rows)
-            or List((name, file_path, separator, columns, rows)) if there are multiple files
+        graph_datas : (name, file_path, separator, columns)
+            or List((name, file_path, separator, columns)) if there are multiple files
             name :       Name of this data, can be None
             file_path :  Which file to parse
             separator :  Separator in csv
@@ -211,7 +211,6 @@ class NodeClassificationDataloader(object):
                     else three (key, type) is provided:
                          the first is treated as src, the second is treated as relation and
                         the third is treated as dst
-            rows: range of rows as features: (start:end) if end == 0, means end of row
 
         Return
         ------
@@ -226,27 +225,21 @@ class NodeClassificationDataloader(object):
         id_map = {} if self._id_maps.get('homo', None) is None else \
                        self._id_maps['homo']
         for graph_data in graph_datas:
-            name, file_path, separator, columns, rows = graph_data
+            name, file_path, separator, columns = graph_data
             assert isinstance(columns, list), "each edge should in order of src, relation, dst"
-            if isinstance(columns[0], int):
-                assert len(columns) == 2
-                # homo graph
-                info = pd.read_csv(file_path, sep=separator, header=None, low_memory=False)
-                n_rows = info.shape[0]
-                row_start, row_end = rows
-                info = info.iloc[row_start:n_rows if row_end==0 else row_end, columns]
-                # now parse edges, both src and dst are int64
-                edges = []
-                for row_val in info.to_numpy(dtype=np.int64):
-                    src = row_val[0]
-                    dst = row_val[1]
-                    src_id = get_id(id_map, src)
-                    dst_id = get_id(id_map, dst)
-                    edges.append((src_id, dst_id))
-                edges = np.asarray(edges, dtype=np.int64)
-                all_edges.append(edges)
-            else:
-                pass # not impl yet
+            assert len(columns) == 2
+            # homo graph
+            info = pd.read_csv(file_path, sep=separator, low_memory=False, usecols=columns)[columns]
+            # now parse edges, both src and dst are int64
+            edges = []
+            for row_val in info.to_numpy(dtype=np.int64):
+                src = row_val[0]
+                dst = row_val[1]
+                src_id = get_id(id_map, src)
+                dst_id = get_id(id_map, dst)
+                edges.append((src_id, dst_id))
+            edges = np.asarray(edges, dtype=np.int64)
+            all_edges.append(edges)
 
         edges = np.concatenate(all_edges)
         self._triplets.append(BasicGraph(edges, (id_map, id_map)))
@@ -265,20 +258,18 @@ class NodeClassificationDataloader(object):
 
         Parameters
         ----------
-        feature_datas : (file_name, separator, columns, rows)
-            or List((file_name, separator, columns, rows)) if there are multiple files
+        feature_datas : (file_name, separator, columns)
+            or List((file_name, separator, columns)) if there are multiple files
             file_name :  Which file to parse
             separator :  Separator in csv
-            columns: column_keys is a List, with following format [(key,type),(key,type),(key,type)...]
-                or [node_id, (start:end)]
-                if column_keys in format [node_id, (start:end)]
-                    We donot parse csv according to column name but through column idx.
-                    node_id means the column idx of node_id, (start:end) means the colmun range for features,
+            columns: column_keys is a List, with following format [node_name, col1_name, col2_name]]
+                if column_keys in format [node_name, col1_name, col2_name]
+                    We donot parse csv according to column name but through column name.
+                    node_id means the column name of node_id, [col1_name, col2_name ...] means the colmun range for features,
                     if end == 0, means end of column.
                 else:
                     Two or more (key, type) pairs should be provided here. Fist is treated as node_id, 
                     The others are treated as features
-            rows: range of rows as features: (start:end) if end == 0, means end of row
 
         Return
         ------
@@ -290,37 +281,26 @@ class NodeClassificationDataloader(object):
                        self._id_maps['homo']
         # only support homo graph now
         for feature_data in feature_datas:
-            file_path, separator, columns, rows = feature_data
+            file_path, separator, columns = feature_data
             assert isinstance(columns, list)
-            if isinstance(columns[0], int):
-                assert len(columns) == 2
-                assert len(rows) == 2
-                # homo graph
-                info = pd.read_csv(file_path, sep=separator, header=None, low_memory=False)
-                n_cols = info.shape[1]
-                n_rows = info.shape[0]
-                row_start, row_end = rows
-                col_start, col_end = columns[1]
-                node_info = info.iloc[row_start:n_rows if row_end==0 else row_end,
-                                      columns[0]]
-                feature_info = info.iloc[row_start:n_rows if row_end==0 else row_end,
-                                         col_start:n_cols if col_end==0 else col_end]
-                node_ids = []
-                # node id should be int64
-                for nid in node_info.to_numpy(dtype=np.int64):
-                    id = get_id(id_map, nid)
-                    node_ids.append(id)
 
-                node_ids = np.asarray(node_ids)
-                features = feature_info.to_numpy(dtype=np.float32)
-                features = sp.csr_matrix(features, dtype=np.float32)
-                if row_norm:
-                    features = row_normalize(features)
-                features = np.array(features.todense())
-                feats.append(features)
-                nids.append(node_ids)
-            else:
-                pass #not impl yet
+            info = pd.read_csv(file_path, sep=separator, low_memory=False, usecols=columns)[columns]
+            node_info = info.iloc[:, 0]
+            feature_info = info.iloc[:, 1:]
+            node_ids = []
+            # node id should be int64
+            for nid in node_info.to_numpy(dtype=np.int64):
+                id = get_id(id_map, nid)
+                node_ids.append(id)
+
+            node_ids = np.asarray(node_ids)
+            features = feature_info.to_numpy(dtype=np.float32)
+            features = sp.csr_matrix(features, dtype=np.float32)
+            if row_norm:
+                features = row_normalize(features)
+            features = np.array(features.todense())
+            feats.append(features)
+            nids.append(node_ids)
 
         features = np.concatenate(feats)
         node_ids = np.concatenate(nids)
@@ -337,20 +317,12 @@ class NodeClassificationDataloader(object):
 
         Parameters
         ----------
-        label_datas : (file_name, separator, columns, rows)
-            or List((file_name, separator, columns, rows)) if there are multiple files
+        label_datas : (file_name, separator, columns)
+            or List((file_name, separator, columns)) if there are multiple files
             file_name :  Which file to parse
             separator :  Separator in csv
             columns: How to parse each column in csv
-                columns is a List, with following format [(key,type),(key,type),(key,type)...]
-                or [idx, idx]
-                if columns in format [idx, idx]
-                    We donot parse csv according to column name but through column idx.
-                    There should exist only two idxes, first is treated as src, second is treated as label.
-                else:
-                    Two (key, type) pairs should be provided here. Fist is treated as src, 
-                    Second is treated as Label.
-            rows: range of rows as features: (start:end) if end == 0, means end of row
+                [str1, str2]: str1 for head and str2 for label
 
         Return
         ------
@@ -363,35 +335,30 @@ class NodeClassificationDataloader(object):
                          self._id_maps['homo']
         label_map = {}
         for label_data in label_datas:
-            file_path, separator, columns, rows = label_data
+            file_path, separator, columns = label_data
             assert isinstance(columns, list)
-            if isinstance(columns[0], int):
-                assert len(columns) == 2
-                # homo graph
-                info = pd.read_csv(file_path, sep=separator, header=None, low_memory=False)
-                n_rows = info.shape[0]
-                row_start, row_end = rows
-                node_info = info.iloc[row_start:n_rows if row_end==0 else row_end, columns[0]]
-                label_info = info.iloc[row_start:n_rows if row_end==0 else row_end, columns[1]]
+            assert len(columns) == 2
+            # homo graph
+            info = pd.read_csv(file_path, sep=separator, low_memory=False, usecols=columns)[columns]
+            node_info = info.iloc[:, 0]
+            label_info = info.iloc[:, 1]
 
-                # now parse label in (id, value) pairs, id will be int64
-                node_info = node_info.to_numpy(dtype=np.int64)
-                label_info = label_info.to_numpy()
-                pairs = []
-                for idx, src in enumerate(node_info):
-                    label = label_info[idx]
-                    src_id = get_id(id_map, src)
-                    label_id = get_id(label_map, label)
-                    pairs.append((src_id, label_id))
+            # now parse label in (id, value) pairs, id will be int64
+            node_info = node_info.to_numpy(dtype=np.int64)
+            label_info = label_info.to_numpy()
+            pairs = []
+            for idx, src in enumerate(node_info):
+                label = label_info[idx]
+                src_id = get_id(id_map, src)
+                label_id = get_id(label_map, label)
+                pairs.append((src_id, label_id))
                 
-                pairs = np.asarray(pairs, dtype=np.int64)
-                ids = pairs[:,0]
-                labels = pairs[:, 1]
+            pairs = np.asarray(pairs, dtype=np.int64)
+            ids = pairs[:,0]
+            labels = pairs[:, 1]
 
-                nids.append(ids)
-                nlabels.append(labels)
-            else:
-                pass #not impl yet
+            nids.append(ids)
+            nlabels.append(labels)
 
         ids = np.concatenate(nids)
         labels = np.concatenate(nlabels)

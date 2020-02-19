@@ -29,7 +29,7 @@ sudo apt install maven
 mvn clean install
 git clone https://github.com/awslabs/amazon-neptune-tools.git
 cd neptune-export
-bin/neptune-export.sh export-pg -d ~/data/cora -e xiangsx-test.cnmovwdys94f.us-east-1.neptune.amazonaws.com --format csv --batch-size 4 --max-content-length 16777216
+bin/neptune-export.sh export-pg -d ~/data/cora -e <YOUR_NEPTUNE_ADDR>.neptune.amazonaws.com --format csv --batch-size 4 --max-content-length 16777216
 ```
 
 You will see config.json edges/ and nodes/ three file/dirs in ~/data/cora/<timeline>/ directory. Now we can train the node classification model using data from ~/data/cora/<timeline>/edges and ~/data/cora/<timeline>/nodes.

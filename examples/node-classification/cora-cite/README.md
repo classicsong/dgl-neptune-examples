@@ -5,7 +5,10 @@ This example shows how to use dgl to train data stored in CSV format and generat
 The Cora dataset (https://relational.fit.cvut.cz/dataset/CORA) consists of 2708 scientific publications classified into one of seven classes. The citation network consists of 5429 links. Each publication in the dataset is described by a 0/1-valued word vector indicating the absence/presence of the corresponding word from the dictionary. The dictionary consists of 1433 unique words.
 
 ## Task Specification
-The Cora dataset is stored as CSV-like format which can be loaded through Neptune Gremlin interface.
+The Cora dataset is stored as CSV-like format which can be loaded through Neptune Gremlin interface. There are two data files:
+
+ * cora.cites.csv, it contains edge info, ~id: the gremlin edge id, ~from: the head id, ~to: the end id
+ * cora.content.csv, it contains node content info, ~id: node id, ~label: gremlin node label (all are paper), Feature0:Int-Feature1432:Int: one hot features, category: paper categories.
 
 ## How to use
 ### Upload data into Neptune
